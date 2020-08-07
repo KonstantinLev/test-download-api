@@ -1,0 +1,81 @@
+version: '3'
+services:
+  api-nginx:
+    container_name: api-nginx
+    build:
+      context: ./api/docker/dev
+      dockerfile: nginx.docker
+    volumes:
+      - ./api:/app
+    depends_on:
+      - api-php-fpm
+    ports:
+      - "8080:80"
+  api-php-fpm:
+    container_name: php-fpm
+    build:
+      context: ./api/docker/dev
+      dockerfile: php-fpm.docker
+    volumes:
+      - ./api:/app
+    depends_on:
+      - api-redis
+      - api-postgres
+      - storage
+  api-php-cli:
+    container_name: php-cli
+    build:
+      context: ./api/docker/dev
+      dockerfile: php-cli.docker
+    volumes:
+      - ./api:/app
+      - composer:/root/.composer/cache
+    depends_on:
+      - api-redis
+      - api-postgres
+      - storage
+  storage:
+    container_name: storage
+    build:
+      context: ./storage/docker/dev
+      dockerfile: nginx.docker
+    volumes:
+      - ./storage:/app
+    ports:
+      - "8081:80"
+  storage-ftp:
+    container_name: storage-ftp
+    image: stilliard/pure-ftpd
+    environment:
+      FTP_USER_NAME: app
+      FTP_USER_PASS: secret
+      FTP_USER_HOME: /app
+    volumes:
+      - ./storage/public:/app
+  api-redis:
+    container_name: redis
+    image: redis:5.0-alpine
+    volumes:
+      - api-redis:/data
+    command:
+      - 'redis-server'
+      - '--databases 2'
+      - '--save 900 1'
+      - '--save 300 10'
+      - '--save 60 10000'
+      - '--requirepass secret'
+  api-postgres:
+    container_name: postgres
+    image: postgres:11.2-alpine
+    volumes:
+      - api-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: app
+    ports:
+      - "54321:5432"
+volumes:
+  composer:
+  api-redis:
+  api-postgres:
